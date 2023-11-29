@@ -49,6 +49,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
       prefs = await SharedPreferences.getInstance();
       if (state == BluetoothConnectionState.connected) {
         _services = []; // must rediscover services
+        if (_services.isEmpty) {
+          onDiscoverServicesPressed();
+          setState(() {});
+        }
       }
       if (state == BluetoothConnectionState.connected && _rssi == null) {
         _rssi = await widget.device.readRssi();
@@ -71,6 +75,17 @@ class _DeviceScreenState extends State<DeviceScreen> {
       _isDisconnecting = value;
       setState(() {});
     });
+
+    Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (isConnected && _rssi != null) {
+        _rssi = await widget.device.readRssi();
+      }
+      setState(() {});
+    });
+
+    if (_services.isNotEmpty) {
+      callDataReadStream();
+    }
   }
 
   @override
@@ -90,6 +105,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
     try {
       await widget.device.connectAndUpdateStream();
       Fluttertoast.showToast(msg: "Connect: Success");
+      if (isConnected) {
+        onDiscoverServicesPressed();
+      }
     } catch (e) {
       if (e is FlutterBluePlusException &&
           e.code == FbpErrorCode.connectionCanceled.index) {
@@ -245,7 +263,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
             style: Theme.of(context)
                 .primaryTextTheme
                 .labelLarge
-                ?.copyWith(color: Colors.white),
+                ?.copyWith(color: Colors.black45),
           ))
     ]);
   }
@@ -269,29 +287,35 @@ class _DeviceScreenState extends State<DeviceScreen> {
           ),
           buildMtuTile(context),
           const SizedBox(height: 50),
-          if (_services.isNotEmpty)
-            Align(
-              alignment: Alignment.center,
-              child: Switch(
-                value: isSwitchOn,
-                onChanged: (val) async {
-                  BluetoothCharacteristic? c = getCharacteristic();
+          Align(
+            alignment: Alignment.center,
+            child: Switch(
+              value: isSwitchOn,
+              onChanged: (val) async {
+                if (isSwitchOn | !isSwitchOn) {
+                  if (_services.isNotEmpty) {
+                    BluetoothCharacteristic? c = getCharacteristic();
 
-                  if (c != null) {
-                    isSwitchOn = val;
-                    setState(() {});
+                    if (c != null) {
+                      isSwitchOn = val;
+                      setState(() {});
 
-                    if (isSwitchOn) {
-                      c.write([1, 0, 0, 0]);
-                    } else {
-                      c.write([0, 0, 0, 0]);
+                      if (isSwitchOn) {
+                        c.write([1, 0, 0, 0]);
+                      } else {
+                        c.write([0, 0, 0, 0]);
+                      }
                     }
+                  } else {
+                    Fluttertoast.showToast(
+                        msg: "Something is wrong, Please wait!");
                   }
-                },
-              ),
+                }
+              },
             ),
+          ),
           const SizedBox(height: 50),
-          Text('read value is: $readValue'),
+          Center(child: Text('Read value is: $readValue')),
           // ..._buildServiceTiles(context, widget.device),
         ],
       ),
@@ -304,7 +328,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
     if (serviceuid.isEmpty || charuid.isEmpty) {
       Fluttertoast.showToast(
-        msg: 'Either provide uuid from setting, otherwise exit motherfucker 🖕',
+        msg: 'Either provide uuid from setting, otherwise exit fuck you 🖕',
       );
       return null;
     }
@@ -326,16 +350,49 @@ class _DeviceScreenState extends State<DeviceScreen> {
     }).toList();
 
     if (chars.isEmpty) {
-      Fluttertoast.showToast(msg: 'No characteristic found maching your uuid');
+      Fluttertoast.showToast(msg: 'No characteristic found matching your uuid');
       return null;
     }
     return chars.first;
   }
 
   readItAgainAndAgain(BluetoothCharacteristic c) {
-    Timer.periodic(const Duration(seconds: 4), (timer) async {
+    Timer.periodic(const Duration(seconds: 2), (timer) async {
       readValue = await c.read();
       setState(() {});
     });
   }
+
+  void callDataReadStream() {
+    String serviceuuid = prefs.getString(Variables.serviceuuid) ?? '';
+    String charuuid = prefs.getString(Variables.charuuid) ?? '';
+
+    if (serviceuuid.isNotEmpty || charuuid.isNotEmpty) {
+      var services = _services.map((e) => e).where((v) {
+        return v.uuid.str.toUpperCase() == serviceuuid.toUpperCase();
+      }).toList();
+
+      if (services.isNotEmpty) {
+        BluetoothService service = services.first;
+        if (service.characteristics.isNotEmpty) {
+          var chars = service.characteristics.map((e) => e).where((element) {
+            if (element.properties.notify || element.properties.indicate) {
+              return true;
+            } else {
+              return false;
+            }
+          }).toList();
+        }
+      }
+    }
+  }
+
+// BluetoothService service = services.first;
+// if (service.characteristics.isEmpty) {
+//   Fluttertoast.showToast(msg: 'No characteristic found maching your uuid');
+//   return null;
+// }
+// var chars = service.characteristics.map((e) => e).where((char) {
+//   return char.uuid.str.toUpperCase() == charuuid.toUpperCase();
+// }).toList();
 }

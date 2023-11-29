@@ -39,8 +39,7 @@ class _ScanScreenState extends State<ScanScreen> {
       _scanResults = results;
       setState(() {});
     }, onError: (e) {
-      Fluttertoast.showToast(
-        msg: prettyException("Scan Error:", e));
+      Fluttertoast.showToast(msg: prettyException("Scan Error:", e));
     });
 
     _isScanningSubscription = FlutterBluePlus.isScanning.listen((state) {
@@ -66,8 +65,7 @@ class _ScanScreenState extends State<ScanScreen> {
           continuousUpdates: true,
           continuousDivisor: divisor);
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: prettyException("Start Scan Error:", e) );
+      Fluttertoast.showToast(msg: prettyException("Start Scan Error:", e));
     }
     setState(() {}); // force refresh of systemDevices
   }
@@ -76,15 +74,13 @@ class _ScanScreenState extends State<ScanScreen> {
     try {
       FlutterBluePlus.stopScan();
     } catch (e) {
-      Fluttertoast.showToast(
-        msg:prettyException("Stop Scan Error:", e) );
+      Fluttertoast.showToast(msg: prettyException("Stop Scan Error:", e));
     }
   }
 
   void onConnectPressed(BluetoothDevice device) {
     device.connectAndUpdateStream().catchError((e) {
-      Fluttertoast.showToast(
-        msg:prettyException("Connect Error:", e));
+      Fluttertoast.showToast(msg: prettyException("Connect Error:", e));
     });
     MaterialPageRoute route = MaterialPageRoute(
         builder: (context) => DeviceScreen(device: device),
@@ -94,7 +90,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future onRefresh() {
     if (_isScanning == false) {
-      FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
+      FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
     }
     setState(() {});
     return Future.delayed(const Duration(milliseconds: 500));
@@ -161,7 +157,7 @@ class _ScanScreenState extends State<ScanScreen> {
         onRefresh: onRefresh,
         child: ListView(
           children: <Widget>[
-            ...?_buildConnectedDeviceTiles(context),
+            ..._buildConnectedDeviceTiles(context),
             ..._buildScanResultTiles(context),
           ],
         ),
