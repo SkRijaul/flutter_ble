@@ -38,6 +38,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
   late StreamSubscription<int> _mtuSubscription;
 
   late SharedPreferences prefs;
+  BluetoothCharacteristic? characteristic;
 
   @override
   void initState() {
@@ -124,8 +125,14 @@ class _DeviceScreenState extends State<DeviceScreen> {
     });
     try {
       _services = await widget.device.discoverServices();
-      BluetoothCharacteristic? c = getCharacteristic();
-      if (c != null) readItAgainAndAgain(c);
+      characteristic = getCharacteristic();
+      setState(() {});
+      if (characteristic != null) {
+        if (!characteristic!.properties.indicate ||
+            !characteristic!.properties.indicate) {
+          readItAgainAndAgain(characteristic!);
+        }
+      }
       Fluttertoast.showToast(msg: "Discover Services: Success");
     } catch (e) {
       Fluttertoast.showToast(
@@ -292,6 +299,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
             ),
           const SizedBox(height: 50),
           Text('read value is: $readValue'),
+          if (characteristic != null)
+            if (characteristic!.properties.indicate ||
+                characteristic!.properties.indicate)
+              buildSubscribeButton(context),
           // ..._buildServiceTiles(context, widget.device),
         ],
       ),
